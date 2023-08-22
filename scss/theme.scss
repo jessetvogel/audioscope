@@ -1,0 +1,20 @@
+:root {
+	/* Colors taken from Material Design color palette:
+	 * https://material.io/design/color/the-color-system.html
+	 */
+
+	--clr-text: #212121;
+	--clr-background-body: #fefefe;
+	--clr-interaction: #0277bd;
+	--clr-interaction-highlight: white;
+
+	--font-main: "museosans";
+	--box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.075);
+}
+
+body.dark {
+	--clr-text: #E0E0E0;
+	--clr-background-body: #212121;
+	--clr-interaction: #01579b;
+	--clr-interaction-highlight: white;
+}

@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Jesse Vogel">
+    <title>Audioscope</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <link rel="stylesheet" href="css/style.css">
+    <script type="module" src="js/script.js"></script>
+</head>
+
+<body class="dark">
+    <div id="content">
+        <div id="canvas-placeholder">Click anywhere to start</div>
+        <canvas id="canvas"></canvas>
+        <div id="controls">
+            <div>
+                <div class="knob" id="knob-time"></div>
+                <div class="label">Time scale (ms)</div><input id="input-time" type="text" />
+            </div>
+            <div>
+                <div class="knob" id="knob-volume"></div>
+                <div class="label">Volume scale (V)</div><input id="input-volume" type="text" />
+            </div>
+            <div>
+                <div class="label">Mode</div>
+                <div class="button-row">
+                    <button>STREAM</button>
+                    <button>TRACK</button>
+                    <button>TRIGGER</button>
+                </div>
+            </div>
+
+            <div>
+                <div class="label">Color</div><input type="color" />
+            </div>
+            <div>
+                <div class="label">Theme</div><label class="switch"><input id="input-theme" type="checkbox"><span class="slider round"></span></label>
+            </div>
+            <div>
+                <div class="label" id="frequency"></div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
