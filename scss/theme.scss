@@ -7,14 +7,29 @@
 	--clr-background-body: #fefefe;
 	--clr-interaction: #0277bd;
 	--clr-interaction-highlight: white;
+	--clr-background-input: white;
+
+	--clr-oscilloscope-background: #eceff1;
+	--clr-oscilloscope-grid: #90a4ae;
+	--clr-oscilloscope-wave: #263238;
+	--clr-oscilloscope-wave-shadow: #00c853;
+	--clr-oscilloscope-text: #263238;
 
 	--font-main: "museosans";
+	--font-oscilloscope: "museosans";
 	--box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.075);
 }
 
 body.dark {
-	--clr-text: #E0E0E0;
-	--clr-background-body: #212121;
+	--clr-text: #e0e0e0;
+	--clr-background-body: #1a1918;
 	--clr-interaction: #01579b;
 	--clr-interaction-highlight: white;
+	--clr-background-input: #263238;
+
+	--clr-oscilloscope-background: #37474f;
+	--clr-oscilloscope-grid: #607d8b;
+	--clr-oscilloscope-wave: #ffffff;
+	--clr-oscilloscope-wave-shadow: #00c853;
+	--clr-oscilloscope-text: #ffffff;
 }

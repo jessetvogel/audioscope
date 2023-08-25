@@ -14,15 +14,28 @@
   --clr-background-body: #fefefe;
   --clr-interaction: #0277bd;
   --clr-interaction-highlight: white;
+  --clr-background-input: white;
+  --clr-oscilloscope-background: #eceff1;
+  --clr-oscilloscope-grid: #90a4ae;
+  --clr-oscilloscope-wave: #263238;
+  --clr-oscilloscope-wave-shadow: #00c853;
+  --clr-oscilloscope-text: #263238;
   --font-main: "museosans";
+  --font-oscilloscope: "museosans";
   --box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.075);
 }
 
 body.dark {
-  --clr-text: #E0E0E0;
-  --clr-background-body: #212121;
+  --clr-text: #e0e0e0;
+  --clr-background-body: #1a1918;
   --clr-interaction: #01579b;
   --clr-interaction-highlight: white;
+  --clr-background-input: #263238;
+  --clr-oscilloscope-background: #37474f;
+  --clr-oscilloscope-grid: #607d8b;
+  --clr-oscilloscope-wave: #ffffff;
+  --clr-oscilloscope-wave-shadow: #00c853;
+  --clr-oscilloscope-text: #ffffff;
 }
 
 html,
@@ -31,6 +44,7 @@ body {
   padding: 0px;
   width: 100%;
   height: 100%;
+  user-select: none;
 }
 
 body {
@@ -50,6 +64,7 @@ body {
   display: grid;
   grid-template-columns: 3fr 1fr;
   grid-template-rows: 1fr;
+  gap: 16px;
 }
 
 #canvas,
@@ -59,7 +74,13 @@ body {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 8px;
+  border-radius: 16px;
+}
+
+#canvas {
+  border: 1px solid var(--clr-text);
+  border-radius: 16px;
+  box-sizing: border-box;
 }
 
 #canvas-placeholder {
@@ -71,10 +92,13 @@ body {
 #controls {
   grid-column: 2/3;
   grid-row: 1/2;
-  padding: 0px 8px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 16px;
+  border: 1px solid var(--clr-text);
+  border-radius: 16px;
+  box-sizing: border-box;
 }
 #controls > div {
   display: flex;
@@ -86,7 +110,9 @@ body {
   line-height: 32px;
 }
 #controls > div > input {
-  width: 48px;
+  width: 64px;
+  margin: 4px 0px;
+  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.5);
 }
 #controls > div > .button-row {
   display: flex;
@@ -105,11 +131,13 @@ input[type=text] {
   padding: 4px;
   box-sizing: border-box;
   text-align: center;
-  font-family: var(--font-main);
   font-size: 12px;
   outline: none;
   border: 0;
+  font-family: var(--font-main);
   box-shadow: var(--box-shadow);
+  background-color: var(--clr-background-input);
+  color: var(--clr-text);
 }
 
 input[type=color] {
@@ -120,7 +148,7 @@ input[type=color] {
   cursor: pointer;
 }
 
-div.knob {
+x-knob {
   min-width: 32px;
   min-height: 32px;
   width: 32px;
@@ -131,8 +159,11 @@ div.knob {
   cursor: ns-resize;
   position: relative;
   transform: rotate(45deg);
+  outline: solid 1px transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.2s ease-out;
 }
-div.knob::after {
+x-knob::after {
   content: "";
   display: block;
   width: 2px;
@@ -141,6 +172,9 @@ div.knob::after {
   position: absolute;
   left: 14px;
   top: 0px;
+}
+x-knob.dragging {
+  outline-color: var(--clr-text);
 }
 
 button {
@@ -153,50 +187,12 @@ button {
   background: var(--clr-interaction);
   color: var(--clr-interaction-highlight);
   border-radius: 4px;
+  outline: solid 1px transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.2s ease-out;
 }
-
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 48px;
-  height: 24px;
-}
-.switch > input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--clr-interaction);
-  -webkit-transition: 0.4s;
-  transition: 0.4s;
-}
-.slider::before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 4px;
-  bottom: 4px;
-  background-color: var(--clr-interaction-highlight);
-  transition: 0.4s;
-}
-.slider.round {
-  border-radius: 12px;
-}
-.slider.round::before {
-  border-radius: 8px;
-}
-
-input:checked + .slider:before {
-  transform: translateX(24px);
+button.selected {
+  outline-color: var(--clr-text);
 }
 
 /*# sourceMappingURL=style.css.map */

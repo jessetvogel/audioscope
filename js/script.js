@@ -1,13 +1,116 @@
+class KnobElement extends HTMLElement {
+    constructor() {
+        super();
+        const min = this.getAttribute('min');
+        this._min = (min !== null) ? parseFloat(min) : 0.0;
+        const max = this.getAttribute('max');
+        this._max = (max !== null) ? parseFloat(max) : 1.0;
+        const type = this.getAttribute('type');
+        this._type = (type === 'lin' || type === 'exp') ? type : 'lin';
+        this._position = 0.0;
+        const value = this.getAttribute('value');
+        if (value !== null)
+            this.value = parseFloat(value);
+        this._onChange = null;
+        this.addEventListener('pointerdown', (event) => this._dragStart(event));
+        this.ownerDocument.addEventListener('pointermove', (event) => this._dragMove(event));
+        this.ownerDocument.addEventListener('pointerup', (event) => this._dragEnd(event));
+        this._updateRotation();
+    }
+    get value() {
+        switch (this._type) {
+            case 'lin': return this._min + (this._max - this._min) * this._position;
+            case 'exp': return this._min * Math.exp(this._position * Math.log(this._max / this._min));
+        }
+    }
+    set value(value) {
+        switch (this._type) {
+            case 'lin':
+                this._setPosition((value - this._min) / (this._max - this._min));
+                break;
+            case 'exp':
+                this._setPosition(Math.log(value / this._min) / Math.log(this._max / this._min));
+                break;
+        }
+    }
+    get type() {
+        return this._type;
+    }
+    set type(type) {
+        if (type === 'lin' || type === 'exp') {
+            const value = this.value;
+            this._type = type;
+            this.value = value;
+        }
+    }
+    set onChange(callback) {
+        this._onChange = callback;
+    }
+    _setPosition(x) {
+        var _a;
+        x = Math.min(1.0, Math.max(0.0, x)); // clamp to [0..1]
+        if (this._position == x)
+            return;
+        this._position = x;
+        this._updateRotation();
+        (_a = this._onChange) === null || _a === void 0 ? void 0 : _a.call(this, this);
+    }
+    _updateRotation() {
+        const angle = -135 + 270 * this._position;
+        this.style.transform = `rotate(${angle}deg)`;
+    }
+    _dragStart(event) {
+        if (event.pointerType === 'mouse' && event.button !== 0) // only listen to left mouse button
+            return;
+        if (!this._dragging) {
+            this._dragging = true;
+            this.classList.add('dragging');
+            this._dragInfo = { id: event.pointerId, x: event.x, y: event.y, position: this._position };
+        }
+    }
+    _dragMove(event) {
+        if (this._dragging && event.pointerId == this._dragInfo.id) {
+            // const angle = Math.atan2(event.x - (this.offsetLeft + this.offsetWidth / 2), - (event.y - (this.offsetTop + this.offsetHeight / 2))) / Math.PI * 180.0;
+            const dy = event.y - this._dragInfo.y;
+            const dx = event.x - this._dragInfo.x;
+            this._setPosition(this._dragInfo.position - dy / 128.0 + dx / 512.0);
+            this._dragInfo.x = event.x;
+            this._dragInfo.y = event.y;
+            this._dragInfo.position = this._position;
+        }
+    }
+    _dragEnd(event) {
+        if (this._dragging && event.pointerId == this._dragInfo.id) {
+            this._dragging = false;
+            this.classList.remove('dragging');
+        }
+    }
+}
+customElements.define('x-knob', KnobElement);
 class Oscilloscope {
     constructor(options) {
         this.canvas = options.canvas;
         this.sampleRate = options.sampleRate;
         this.grid = { width: 64, height: 64 };
         this.scale = { x: 64, y: 0.1 };
+        this._mode = 'stream';
+        options.bufferSize = Math.min(65536, Math.max(0, Math.floor(options.bufferSize))); // don't trust user input
+        this.buffer = new Float32Array(options.bufferSize);
         this.estimatedFrequency = 0.0;
-        this.followWave = true;
-        this.index = 0;
+        this.centerIndex = 0;
         this._setupCanvas();
+    }
+    get mode() {
+        return this._mode;
+    }
+    set mode(mode) {
+        this._mode = mode;
+    }
+    set timePerDivision(ms) {
+        this.scale.x = ms / 1000.0 * this.sampleRate;
+    }
+    set volumePerDivision(volume) {
+        this.scale.y = volume;
     }
     _setupCanvas() {
         const dpr = window.devicePixelRatio;
@@ -18,47 +121,85 @@ class Oscilloscope {
         this.ctx = this.canvas.getContext('2d');
         this.ctx.scale(dpr, dpr);
     }
-    feed(buffer) {
-        const length = this.width / this.grid.width * this.scale.x; // maximum number of samples that fit on the screen
-        this.index = this.index - buffer.length; // TODO: this assumes all buffers have the same size
-        const period = Math.max(1, this._estimatePeriod(buffer));
+    feed(data) {
+        // Update this.buffer and this.centerIndex
+        this.buffer.copyWithin(0, data.length);
+        this.buffer.set(data, this.buffer.length - data.length);
+        this.centerIndex -= data.length;
+        // Estimate period and frequency from new data
+        const period = Math.max(1, this._estimatePeriod(data));
         this.estimatedFrequency = this.sampleRate / period;
-        while (this.index < buffer.length - length / 2 - period)
-            this.index += period;
-        this.index = Math.floor(this.index);
-        this.index = this._findNearestZeroCrossing(buffer, this.index);
-        const a = buffer[this.index];
-        const b = buffer[this.index + 1];
-        const xShift = (a - b == 0) ? 0 : -a / (a - b);
+        // Compute the maximum number of samples that fit on the screen
+        const maxLength = Math.ceil(this.width / this.grid.width * this.scale.x);
+        // ---
+        switch (this._mode) {
+            case 'stream': // show the most recent output
+                this.centerIndex = this.buffer.length - maxLength / 2;
+                break;
+            case 'track':
+                this.centerIndex += Math.floor(period * Math.floor((this.buffer.length - maxLength / 2 - this.centerIndex) / period));
+                this.centerIndex = this._findNearestZeroCrossing(this.buffer, this.centerIndex);
+                break;
+            case 'trigger':
+                break;
+        }
+        // Draw background
         this.ctx.clearRect(0, 0, this.width, this.height);
         this.ctx.beginPath();
         this.ctx.rect(0, 0, this.width, this.height);
-        this.ctx.fillStyle = 'lightgray';
+        this.ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--clr-oscilloscope-background');
         this.ctx.fill();
         this.drawGrid();
-        this.drawWave(buffer, this.index - length / 2, length, { x: xShift, y: 0 });
+        this.drawWave(this.buffer, this.centerIndex);
+        this.drawFrequency(this.estimatedFrequency);
     }
-    drawWave(buffer, start, length, shift = null) {
-        if (shift == null)
-            shift = { x: 0, y: 0 };
-        this.ctx.strokeStyle = 'black';
-        this.ctx.shadowBlur = 10;
-        this.ctx.shadowColor = 'blue';
+    drawFrequency(frequency) {
+        this.ctx.font = '12px ' + getComputedStyle(document.body).getPropertyValue('--font-oscilloscope');
+        this.ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--clr-oscilloscope-text');
+        this.ctx.fillText(`frequency = ${frequency.toFixed(2)} Hz`, this.width - 192, 24);
+    }
+    drawWave(buffer, centerIndex) {
+        const center = Math.round(centerIndex);
+        const shift = (center - centerIndex) / this.scale.x * this.grid.width;
+        const maxLength = Math.ceil(this.width / this.grid.width * this.scale.x);
+        const start = Math.max(0, Math.floor(center - maxLength / 2));
+        const end = Math.min(buffer.length, Math.ceil(center + maxLength / 2));
+        this.ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--clr-oscilloscope-wave');
+        this.ctx.shadowColor = getComputedStyle(document.body).getPropertyValue('--clr-oscilloscope-wave-shadow');
+        // this.ctx.shadowBlur = 8;
         this.ctx.beginPath();
-        // this.ctx.moveTo(0, this.height / 2);
-        const end = Math.min(start + length, buffer.length); // to prevent overflows
-        for (let i = start; i < end; ++i) {
-            const value = buffer[i];
-            const x = this.width - ((end - i) / this.scale.x) * this.grid.width + shift.x;
-            const y = this.height / 2 - (value / this.scale.y) * this.grid.height + shift.y;
-            if (x >= 0)
-                this.ctx.lineTo(x, y);
+        if (end - start <= this.width) { // if there is at least one pixel per sample, just draw all samples
+            for (let i = start; i < end; ++i) {
+                const value = buffer[i];
+                const x = this.width / 2 + (i - center) / this.scale.x * this.grid.width + shift;
+                const y = this.height / 2 - (value / this.scale.y) * this.grid.height;
+                if (x >= 0 && x <= this.width)
+                    this.ctx.lineTo(x, y);
+            }
+        }
+        else { // if there are multiple samples per pixel, only draw the maximum and minimum
+            for (let x = 0; x < this.width; ++x) {
+                let iStart = Math.max(start, Math.floor((x - this.width / 2 - shift) / this.grid.width * this.scale.x + center));
+                let iEnd = Math.min(end, Math.floor(((x + 1) - this.width / 2 - shift) / this.grid.width * this.scale.x + center));
+                let max = -Infinity;
+                let min = Infinity;
+                for (let i = iStart; i < iEnd; ++i) {
+                    if (buffer[i] > max)
+                        max = buffer[i];
+                    if (buffer[i] < min)
+                        min = buffer[i];
+                }
+                const yMin = this.height / 2 - (min / this.scale.y) * this.grid.height;
+                const yMax = this.height / 2 - (max / this.scale.y) * this.grid.height;
+                this.ctx.lineTo(x, yMin);
+                this.ctx.lineTo(x, yMax);
+            }
         }
         this.ctx.stroke();
         this.ctx.shadowBlur = 0;
     }
     drawGrid() {
-        this.ctx.strokeStyle = 'grey';
+        this.ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--clr-oscilloscope-grid');
         const xStart = this.width / 2 - Math.ceil(this.width / 2 / this.grid.width) * this.grid.width;
         const yStart = this.height / 2 - Math.ceil(this.height / 2 / this.grid.height) * this.grid.height;
         for (let x = xStart; x < this.width; x += this.grid.width) {
@@ -122,11 +263,20 @@ class Oscilloscope {
         return i; // by default
     }
     _findNearestZeroCrossing(buffer, i) {
+        i = Math.round(i);
         for (let j = 0; j < buffer.length; j++) {
-            if (i - j - 1 >= 0 && buffer[i - j - 1] * buffer[i - j] <= 0)
-                return i - j;
-            if (i + j + 1 < buffer.length && buffer[i + j] * buffer[i + j + 1] <= 0)
-                return i + j;
+            if (i - j - 1 >= 0) {
+                let a = buffer[i - j - 1];
+                let b = buffer[i - j];
+                if (a * b <= 0)
+                    return (i - j - 1) + a / (a - b);
+            }
+            if (i + j + 1 < buffer.length) {
+                let a = buffer[i + j];
+                let b = buffer[i + j + 1];
+                if (a * b <= 0)
+                    return (i + j) + a / (a - b);
+            }
         }
         return i; // by default
     }
@@ -136,6 +286,7 @@ class Oscilloscope {
 }
 const SAMPLE_RATE = 44100;
 const FFT_SIZE = 4096;
+let oscilloscope;
 function requestMicrophone() {
     return navigator.mediaDevices.getUserMedia({
         audio: {
@@ -144,38 +295,41 @@ function requestMicrophone() {
         }
     });
 }
-var complexFrequencyData;
-window.onload = function () {
-    onChange($('input-theme'), function () {
-        const checked = this.checked;
-        document.body.classList[checked ? 'add' : 'remove']('dark');
+function init() {
+    // Oscilloscope
+    oscilloscope = new Oscilloscope({
+        canvas: $('canvas'),
+        sampleRate: SAMPLE_RATE,
+        bufferSize: 65536
     });
+    // Controls
+    connectInputs(oscilloscope, 'timePerDivision', [$('knob-time'), $('input-time')]);
+    connectInputs(oscilloscope, 'volumePerDivision', [$('knob-volume'), $('input-volume')]);
+    const buttonThemeLight = $('button-theme-light');
+    const buttonThemeDark = $('button-theme-dark');
+    onClick(buttonThemeLight, () => { document.body.classList.remove('dark'); buttonThemeLight.classList.add('selected'); buttonThemeDark.classList.remove('selected'); });
+    onClick(buttonThemeDark, () => { document.body.classList.add('dark'); buttonThemeLight.classList.remove('selected'); buttonThemeDark.classList.add('selected'); });
+    buttonThemeDark.click();
+    const buttonModeStream = $('button-mode-stream');
+    const buttonModeTrack = $('button-mode-track');
+    const buttonModeTrigger = $('button-mode-trigger');
+    onClick(buttonModeStream, () => { oscilloscope.mode = 'stream'; buttonModeStream.classList.add('selected'); buttonModeTrack.classList.remove('selected'); buttonModeTrigger.classList.remove('selected'); });
+    onClick(buttonModeTrack, () => { oscilloscope.mode = 'track'; buttonModeStream.classList.remove('selected'); buttonModeTrack.classList.add('selected'); buttonModeTrigger.classList.remove('selected'); });
+    onClick(buttonModeTrigger, () => { oscilloscope.mode = 'trigger'; buttonModeStream.classList.remove('selected'); buttonModeTrack.classList.remove('selected'); buttonModeTrigger.classList.add('selected'); });
+    buttonModeStream.click();
+    // Create AudioContext on user input
     document.body.addEventListener('click', async function () {
         const audioContext = new AudioContext({ sampleRate: SAMPLE_RATE, });
         await audioContext.audioWorklet.addModule('js/recorder-worklet.js');
         // Create an AudioNode from the microphone stream
         const stream = await requestMicrophone();
         const input = audioContext.createMediaStreamSource(stream);
-        // input = convertToMono(input); // mono ?
-        // Create an AnalyserNode
-        // const analyser = new ComplexAnalyserNode(audioContext, { fftSize: FFT_SIZE });
-        // complexFrequencyData = new Float32Array(FFT_SIZE);
-        // input.connect(analyser);
-        // Canvas
-        const canvas = $('canvas');
-        canvas.width = 1024;
-        canvas.height = 1024;
-        const oscilloscope = new Oscilloscope({
-            canvas: canvas,
-            sampleRate: SAMPLE_RATE
-        });
         // Create a RecorderWorklet
         const recorder = new AudioWorkletNode(audioContext, 'recorder-worklet');
         recorder.port.onmessage = (e) => {
             if (e.data.eventType === 'data') {
                 const buffer = e.data.audioBuffer;
                 oscilloscope.feed(buffer);
-                setText($('frequency'), `${oscilloscope.getEstimatedFrequency().toFixed(2)} Hz`);
             }
             if (e.data.eventType === 'stop') {
                 // recording has stopped
@@ -185,7 +339,30 @@ window.onload = function () {
         input.connect(recorder);
         recorder.parameters.get('isRecording').setValueAtTime(1, 0.0);
     }, { once: true });
-};
+}
+window.onload = init;
+function connectInputs(object, key, inputs) {
+    function update(value) {
+        object[key] = value;
+        for (const input of inputs) {
+            if (input instanceof HTMLInputElement)
+                input.value = value.toFixed(2);
+            if (input instanceof KnobElement)
+                input.value = value;
+        }
+    }
+    for (const input of inputs) {
+        if (input instanceof HTMLInputElement)
+            onChange(input, () => update(parseFloat(input.value)));
+        if (input instanceof KnobElement) {
+            input.onChange = () => {
+                update(input.value);
+            };
+        }
+    }
+    if (inputs.length > 0)
+        update(parseFloat(inputs[0].value));
+}
 function $(id) {
     return document.getElementById(id);
 }

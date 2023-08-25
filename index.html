@@ -17,30 +17,58 @@
         <canvas id="canvas"></canvas>
         <div id="controls">
             <div>
-                <div class="knob" id="knob-time"></div>
-                <div class="label">Time scale (ms)</div><input id="input-time" type="text" />
+                <div class="label">time/div (ms)</div>
+                <x-knob id="knob-time" type="exp" min="0.1" max="100" value="10"></x-knob>
+                <input id="input-time" type="text" />
             </div>
             <div>
-                <div class="knob" id="knob-volume"></div>
-                <div class="label">Volume scale (V)</div><input id="input-volume" type="text" />
+                <div class="label">volume/div</div>
+                <x-knob id="knob-volume" type="lin" min="0.01" max="1.5" value="0.5"></x-knob>
+                <input id="input-volume" type="text" />
             </div>
             <div>
                 <div class="label">Mode</div>
                 <div class="button-row">
-                    <button>STREAM</button>
-                    <button>TRACK</button>
-                    <button>TRIGGER</button>
+                    <button id="button-mode-stream">STREAM</button>
+                    <button id="button-mode-track">TRACK</button>
+                    <button id="button-mode-trigger">TRIGGER</button>
+                </div>
+            </div>
+            <div>
+                <div class="label">Output</div>
+                <div class="button-row">
+                    <button>ON</button>
+                    <button>OFF</button>
                 </div>
             </div>
 
+            <div></div>
+
             <div>
-                <div class="label">Color</div><input type="color" />
+                <div class="label">CH 1</div>
+                <div class="button-row"><button>COPY</button><button>SHOW</button></div>
             </div>
             <div>
-                <div class="label">Theme</div><label class="switch"><input id="input-theme" type="checkbox"><span class="slider round"></span></label>
+                <div class="label">CH 2</div>
+                <div class="button-row"><button>COPY</button><button>SHOW</button></div>
             </div>
             <div>
-                <div class="label" id="frequency"></div>
+                <div class="label">CH 3</div>
+                <div class="button-row"><button>COPY</button><button>SHOW</button></div>
+            </div>
+            <div>
+                <div class="label">CH 4</div>
+                <div class="button-row"><button>COPY</button><button>SHOW</button></div>
+            </div>
+
+            <div></div>
+
+            <div>
+                <div class="label">Theme</div>
+                <div class="button-row">
+                    <button id="button-theme-light">LIGHT</button>
+                    <button id="button-theme-dark">DARK</button>
+                </div>
             </div>
         </div>
     </div>

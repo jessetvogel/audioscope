@@ -1,6 +1,10 @@
-- Mode selector:
-  - STREAM (show the last data)
-  - ANCHOR (try to fix the signal)
-  - TRIGGER (freeze image after silence < 0.01)
-
 - FFT
+
+- Color area under wave ?
+
+- Store to channel / take snapshots (can remove color, also coloring area is useless)
+- Channels
+  - [SNAP] [SHOW]
+
+- Freeze function
+
