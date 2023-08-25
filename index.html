@@ -23,42 +23,42 @@
             </div>
             <div>
                 <div class="label">volume/div</div>
-                <x-knob id="knob-volume" type="lin" min="0.01" max="1.5" value="0.5"></x-knob>
+                <x-knob id="knob-volume" type="exp" min="0.01" max="1.5" value="0.5"></x-knob>
                 <input id="input-volume" type="text" />
             </div>
             <div>
-                <div class="label">Mode</div>
+                <div class="label">mode</div>
                 <div class="button-row">
-                    <button id="button-mode-stream">STREAM</button>
+                    <button id="button-mode-stream" class="selected">STREAM</button>
                     <button id="button-mode-track">TRACK</button>
                     <button id="button-mode-trigger">TRIGGER</button>
                 </div>
             </div>
             <div>
-                <div class="label">Output</div>
+                <div class="label">output</div>
                 <div class="button-row">
-                    <button>ON</button>
-                    <button>OFF</button>
+                    <button id="button-output-on">ON</button>
+                    <button id="button-output-off" class="selected">OFF</button>
                 </div>
             </div>
 
             <div></div>
 
             <div>
-                <div class="label">CH 1</div>
-                <div class="button-row"><button>COPY</button><button>SHOW</button></div>
+                <div class="label"><span class="dot green" id="button-clear-input"></span>INPUT</div>
+                <div class="button-row"><button id="button-show-input" class="selected">SHOW</button></div>
             </div>
             <div>
-                <div class="label">CH 2</div>
-                <div class="button-row"><button>COPY</button><button>SHOW</button></div>
+                <div class="label"><span class="dot red" id="button-clear-red"></span>RED</div>
+                <div class="button-row"><button id="button-copy-red">COPY</button><button id="button-show-red">SHOW</button></div>
             </div>
             <div>
-                <div class="label">CH 3</div>
-                <div class="button-row"><button>COPY</button><button>SHOW</button></div>
+                <div class="label"><span class="dot blue" id="button-clear-blue"></span>BLUE</div>
+                <div class="button-row"><button id="button-copy-blue">COPY</button><button id="button-show-blue">SHOW</button></div>
             </div>
             <div>
-                <div class="label">CH 4</div>
-                <div class="button-row"><button>COPY</button><button>SHOW</button></div>
+                <div class="label"><span class="dot yellow" id="button-clear-yellow"></span>YELLOW</div>
+                <div class="button-row"><button id="button-copy-yellow">COPY</button><button id="button-show-yellow">SHOW</button></div>
             </div>
 
             <div></div>
@@ -67,7 +67,7 @@
                 <div class="label">Theme</div>
                 <div class="button-row">
                     <button id="button-theme-light">LIGHT</button>
-                    <button id="button-theme-dark">DARK</button>
+                    <button id="button-theme-dark" class="selected">DARK</button>
                 </div>
             </div>
         </div>

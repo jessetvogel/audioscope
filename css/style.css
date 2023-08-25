@@ -11,18 +11,20 @@
    * https://material.io/design/color/the-color-system.html
    */
   --clr-text: #212121;
-  --clr-background-body: #fefefe;
+  --clr-background-body: #fcfcfc;
   --clr-interaction: #0277bd;
   --clr-interaction-highlight: white;
   --clr-background-input: white;
   --clr-oscilloscope-background: #eceff1;
   --clr-oscilloscope-grid: #90a4ae;
-  --clr-oscilloscope-wave: #263238;
-  --clr-oscilloscope-wave-shadow: #00c853;
+  --clr-oscilloscope-wave-green: #64dd17;
+  --clr-oscilloscope-wave-red: #d50000;
+  --clr-oscilloscope-wave-blue: #0091ea;
+  --clr-oscilloscope-wave-yellow: #ffd600;
   --clr-oscilloscope-text: #263238;
   --font-main: "museosans";
   --font-oscilloscope: "museosans";
-  --box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.075);
+  --box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.12);
 }
 
 body.dark {
@@ -33,8 +35,10 @@ body.dark {
   --clr-background-input: #263238;
   --clr-oscilloscope-background: #37474f;
   --clr-oscilloscope-grid: #607d8b;
-  --clr-oscilloscope-wave: #ffffff;
-  --clr-oscilloscope-wave-shadow: #00c853;
+  --clr-oscilloscope-wave-green: #76ff03;
+  --clr-oscilloscope-wave-red: #ff1744;
+  --clr-oscilloscope-wave-blue: #00b0ff;
+  --clr-oscilloscope-wave-yellow: #ffea00;
   --clr-oscilloscope-text: #ffffff;
 }
 
@@ -54,6 +58,10 @@ body {
   background-color: var(--clr-background-body);
   font-family: var(--font-main);
   color: var(--clr-text);
+}
+
+* {
+  transition: background-color 0.2s ease-out, color 0.2s ease-out;
 }
 
 #content {
@@ -112,7 +120,7 @@ body {
 #controls > div > input {
   width: 64px;
   margin: 4px 0px;
-  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--box-shadow);
 }
 #controls > div > .button-row {
   display: flex;
@@ -182,17 +190,43 @@ button {
   padding: 0;
   cursor: pointer;
   outline: inherit;
-  font-family: var(--font-main);
+  border-radius: 4px;
   font-size: 12px;
+  font-family: var(--font-main);
   background: var(--clr-interaction);
   color: var(--clr-interaction-highlight);
-  border-radius: 4px;
+  box-shadow: var(--box-shadow);
   outline: solid 1px transparent;
   outline-offset: 2px;
   transition: outline-color 0.2s ease-out;
 }
 button.selected {
   outline-color: var(--clr-text);
+}
+
+span.dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 12px;
+  vertical-align: middle;
+  margin-right: 8px;
+  outline: solid 1px transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.2s ease-out;
+  outline-color: var(--clr-text);
+}
+span.dot.green {
+  background-color: var(--clr-oscilloscope-wave-green);
+}
+span.dot.red {
+  background-color: var(--clr-oscilloscope-wave-red);
+}
+span.dot.blue {
+  background-color: var(--clr-oscilloscope-wave-blue);
+}
+span.dot.yellow {
+  background-color: var(--clr-oscilloscope-wave-yellow);
 }
 
 /*# sourceMappingURL=style.css.map */
