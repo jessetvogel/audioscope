@@ -117,19 +117,22 @@ body {
   font-size: 12px;
   line-height: 32px;
 }
-#controls > div > input {
+#controls > div > .input-row {
+  display: flex;
+  gap: 8px;
+}
+#controls > div > .input-row > button {
+  width: 64px;
+  height: 24px;
+  margin: 4px 0px;
+}
+#controls > div > .input-row > input {
   width: 64px;
   margin: 4px 0px;
   box-shadow: var(--box-shadow);
 }
-#controls > div > .button-row {
-  display: flex;
-  gap: 8px;
-}
-#controls > div > .button-row > button {
-  width: 56px;
-  height: 24px;
-  margin: 4px 0px;
+#controls > div > .input-row > x-knob {
+  margin: 0px 16px;
 }
 
 input[type=text] {
@@ -146,6 +149,7 @@ input[type=text] {
   box-shadow: var(--box-shadow);
   background-color: var(--clr-background-input);
   color: var(--clr-text);
+  border-radius: 4px;
 }
 
 input[type=color] {

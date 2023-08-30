@@ -1,25 +1,36 @@
 class Channel {
-    buffer: Float32Array; // buffer containing samples
+    buffer: Array<number>; // buffer containing samples
     focus: number; // index [0..buffer.length] which is the focus point of the buffer (allowed to be non-integer!)
     visible: boolean;
     estimatedPeriod: number; // estimated period of the last buffer
+    estimatedPeriodSure: boolean;
+
+    autoCorrelationChannel: Channel;
 
     constructor(size: number) {
         size = Math.min(65536, Math.max(0, Math.floor(size))); // don't trust user input
-        this.buffer = new Float32Array(size);
+        this.buffer = new Array(size);
         this.focus = size / 2;
         this.visible = false;
         this.estimatedPeriod = 1.0;
+        this.autoCorrelationChannel = null;
     }
 
-    feed(data: Float32Array): void {
+    feed(data: Array<number>): void {
         // Update this.buffer and this.focus
         this.buffer.copyWithin(0, data.length);
-        this.buffer.set(data, this.buffer.length - data.length);
+        for (let i = 0; i < data.length; ++i)
+            this.buffer[this.buffer.length - data.length + i] = data[i];
         this.focus -= data.length;
 
         // Estimate period and frequency based on the new data
-        this.estimatedPeriod = Math.max(1.0, this._estimatePeriod(data));
+        const estimation = this._estimatePeriod(data);
+        if (estimation == null)
+            this.estimatedPeriodSure = false; // do not change the estimated period, for `track` mode, but indicate that not sure
+        else {
+            this.estimatedPeriod = estimation;
+            this.estimatedPeriodSure = true;
+        }
     }
 
     _findZeroCrossingBefore(i: number): number {
@@ -50,38 +61,68 @@ class Channel {
         return i; // by default
     }
 
-    _estimatePeriod(data: Float32Array): number {
+    _estimatePeriod(data: Array<number>): number {
+        // Autocorrelation
         const n = data.length;
+        const peakThreshold = 0.3;
 
         let corr_1 = 0.0;
         let corr_2 = 0.0;
         let corr_3 = 0.0;
 
-        let prevMaxima = 0.0;
-        let sumDistanceMaxima = 0.0;
-        let numberMaxima = 0;
+        let normalization: number;
+        let previousPeak = 0.0;
+        let sumPeakDistance = 0.0;
+        let numberPeaks = 0;
+        let minPeakDistance = Infinity;
+        let maxPeakDistance = -Infinity;
 
-        for (let l = 0; l < n * (3 / 4); l++) {
+        for (let k = 0; k < n * (3 / 4); k++) {
             corr_1 = corr_2;
             corr_2 = corr_3;
-            corr_3 = 0.0;
-            for (let i = 0; i < n - l; i++)
-                corr_3 += data[i] * data[i + l];
 
-            if (l > 1 && corr_2 > corr_1 && corr_2 > corr_3) {
-                const offset = (corr_1 - corr_3) / (2 * (corr_1 - 2 * corr_2 + corr_3));
-                const maxima = (l - 1) + offset;
+            // Compute autocorrelation
+            let corr = 0.0;
+            for (let i = 0; i < n - k; i++)
+                corr += data[i] * data[i + k];
+            if (k == 0)
+                normalization = corr;
 
-                sumDistanceMaxima += maxima - prevMaxima;
-                prevMaxima = maxima;
-                numberMaxima++;
+            // Normalize autocorrelation
+            corr_3 = corr / normalization;
+
+            // Store autocorrelation
+            if (this.autoCorrelationChannel != null)
+                this.autoCorrelationChannel.buffer[k] = corr_3;
+
+            const threshold = peakThreshold * (n - k) / n;
+            if (k > 1 && corr_2 > threshold && corr_2 > corr_1 && corr_2 > corr_3) {
+                const offset = (corr_1 - corr_3) / (2 * (corr_1 - 2 * corr_2 + corr_3)); // quadratic correction
+                const peak = (k - 1) + offset;
+                const peakDistance = peak - previousPeak;
+
+                if (peakDistance < minPeakDistance)
+                    minPeakDistance = peakDistance;
+                if (peakDistance > maxPeakDistance)
+                    maxPeakDistance = peakDistance;
+
+                previousPeak = peak;
+                sumPeakDistance += peakDistance;
+                numberPeaks++;
             }
         }
 
-        if (numberMaxima == 0) // for safety
-            return 1.0;
+        if (this.autoCorrelationChannel != null)
+            this.autoCorrelationChannel.focus = data.length / 2;
 
-        return sumDistanceMaxima / numberMaxima;
+        if (numberPeaks == 0) // for safety
+            return null;
+
+        const meanPeakDistance = sumPeakDistance / numberPeaks;
+        if (minPeakDistance / meanPeakDistance < 0.95 || maxPeakDistance / meanPeakDistance > 1.05) // if too uncertain, return null
+            return null;
+
+        return meanPeakDistance;
     }
 };
 
@@ -139,12 +180,14 @@ class Oscilloscope {
         this.ctx.scale(dpr, dpr);
     }
 
-    feed(data: Float32Array): void {
+    feed(data: Array<number>): void {
         const channel = this.channels[0];
 
         // Feed data to first channel
-        if (this._mode !== 'trigger')
+        if (this._mode !== 'trigger') {
+            // channel.autoCorrelationChannel = this.channels[1];
             channel.feed(data);
+        }
 
         // Compute the maximum number of samples that fit on the screen
         const maxLength = Math.ceil(this.width / this.grid.width * this.scale.x);
@@ -181,11 +224,14 @@ class Oscilloscope {
         // Draw channels
         const texts = [];
         for (let i = 0; i < this.channels.length; ++i) {
-            if (this.channels[i].visible) {
+            const channel = this.channels[i];
+            if (channel.visible) {
                 const color = this._getChannelColor(i);
-                this._drawChannel(this.channels[i], color);
-                texts.push({ text: `frequency = ${(this.sampleRate / this.channels[i].estimatedPeriod).toFixed(1)} Hz`, color });
-                texts.push({ text: `period = ${(this.channels[i].estimatedPeriod * 1000.0).toFixed(0)} ms`, color });
+                this._drawChannel(channel, color);
+                const frequency = channel.estimatedPeriodSure ? (this.sampleRate / channel.estimatedPeriod).toFixed(1) + ' Hz' : '--';
+                const period = channel.estimatedPeriodSure ? (channel.estimatedPeriod * 1000.0).toFixed(0) + ' ms' : '--';
+                texts.push({ text: `frequency = ${frequency}`, color });
+                texts.push({ text: `period = ${period}`, color });
             }
         }
 
@@ -201,7 +247,7 @@ class Oscilloscope {
         const end = Math.min(channel.buffer.length, Math.ceil(center + maxLength / 2));
 
         let points = [];
-        if (maxLength <= this.width / 2) { // if there is at least one pixel per sample, just draw all samples
+        if (maxLength <= this.width) { // if there is at least one pixel per sample, just draw all samples
             for (let i = start; i < end; ++i) {
                 const value = channel.buffer[i];
                 const x = this.width / 2 + (i - center) / this.scale.x * this.grid.width + shift;
@@ -209,22 +255,15 @@ class Oscilloscope {
                 points.push([x, y]);
             }
         }
-        else { // if there are multiple samples per pixel, only draw the maximum and minimum (every 2 pixels)
-            for (let x = 0; x < this.width; x += 2) {
-                let iStart = Math.max(start, Math.floor((x - this.width / 2 - shift) / this.grid.width * this.scale.x + center));
-                let iEnd = Math.min(end, Math.floor(((x + 1) - this.width / 2 - shift) / this.grid.width * this.scale.x + center));
-
-                if (iStart < iEnd) {
-                    let max = -Infinity;
-                    let min = Infinity;
-                    for (let i = iStart; i < iEnd; ++i) {
-                        if (channel.buffer[i] > max) max = channel.buffer[i];
-                        if (channel.buffer[i] < min) min = channel.buffer[i];
-                    }
-                    const yMin = this.height / 2 - (min / this.scale.y) * this.grid.height;
-                    const yMax = this.height / 2 - (max / this.scale.y) * this.grid.height;
-                    points.push([x, yMin]);
-                    points.push([x + 1, yMax]);
+        else { // if there are multiple samples per pixel, draw one (interpolated) sample per pixel
+            for (let x = 0; x < this.width; ++x) {
+                let i = (x - this.width / 2 - shift) / this.grid.width * this.scale.x + center;
+                if (i >= start && i < end) {
+                    const iFloor = Math.floor(i);
+                    const iFrac = i - iFloor;
+                    const value = channel.buffer[iFloor] * (1.0 - iFrac) + channel.buffer[iFloor + 1] * iFrac;
+                    const y = this.height / 2 - (value / this.scale.y) * this.grid.height;
+                    points.push([x, y]);
                 }
             }
         }
@@ -304,7 +343,8 @@ class Oscilloscope {
     }
 
     copyChannel(from: number, to: number): void {
-        this.channels[to].buffer.set(this.channels[from].buffer); // copy buffer
+        for (let i = 0; i < this.channels[from].buffer.length; ++i)
+            this.channels[to].buffer[i] = this.channels[from].buffer[i]; // copy buffer
         this.channels[to].focus = this.channels[from].focus; // copy focus point
         this.channels[to].estimatedPeriod = this.channels[from].estimatedPeriod; // copy estimated period
     }

@@ -83,20 +83,24 @@ body {
             line-height: 32px;
         }
 
-        > input {
-            width: 64px;
-            margin: 4px 0px;
-            box-shadow: var(--box-shadow);
-        }
-
-        > .button-row {
+        > .input-row {
             display: flex;
             gap: 8px;
 
             > button {
-                width: 56px;
+                width: 64px;
                 height: 24px;
                 margin: 4px 0px;
+            }
+
+            > input {
+                width: 64px;
+                margin: 4px 0px;
+                box-shadow: var(--box-shadow);
+            }
+
+            > x-knob {
+                margin: 0px 16px;
             }
         }
     }
@@ -116,6 +120,7 @@ input[type="text"] {
     box-shadow: var(--box-shadow);
     background-color: var(--clr-background-input);
     color: var(--clr-text);
+    border-radius: 4px;
 }
 
 input[type="color"] {

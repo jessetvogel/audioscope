@@ -8,3 +8,4 @@
 
 - Freeze function
 
+- Playback selection

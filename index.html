@@ -18,17 +18,21 @@
         <div id="controls">
             <div>
                 <div class="label">time/div (ms)</div>
-                <x-knob id="knob-time" type="exp" min="0.1" max="100" value="10"></x-knob>
-                <input id="input-time" type="text" />
+                <div class="input-row">
+                    <x-knob id="knob-time" type="exp" min="0.1" max="100" value="10"></x-knob>
+                    <input id="input-time" type="text" />
+                </div>
             </div>
             <div>
                 <div class="label">volume/div</div>
-                <x-knob id="knob-volume" type="exp" min="0.01" max="1.5" value="0.5"></x-knob>
-                <input id="input-volume" type="text" />
+                <div class="input-row">
+                    <x-knob id="knob-volume" type="exp" min="0.01" max="1.5" value="0.5"></x-knob>
+                    <input id="input-volume" type="text" />
+                </div>
             </div>
             <div>
                 <div class="label">mode</div>
-                <div class="button-row">
+                <div class="input-row">
                     <button id="button-mode-stream" class="selected">STREAM</button>
                     <button id="button-mode-track">TRACK</button>
                     <button id="button-mode-trigger">TRIGGER</button>
@@ -36,7 +40,7 @@
             </div>
             <div>
                 <div class="label">output</div>
-                <div class="button-row">
+                <div class="input-row">
                     <button id="button-output-on">ON</button>
                     <button id="button-output-off" class="selected">OFF</button>
                 </div>
@@ -45,27 +49,45 @@
             <div></div>
 
             <div>
-                <div class="label"><span class="dot green" id="button-clear-input"></span>INPUT</div>
-                <div class="button-row"><button id="button-show-input" class="selected">SHOW</button></div>
+                <div class="label">filter</div>
+                <div class="input-row">
+                    <button id="button-filter-low">LOW</button>
+                    <button id="button-filter-high">HIGH</button>
+                    <button id="button-filter-off" class="selected">OFF</button>
+                </div>
             </div>
             <div>
-                <div class="label"><span class="dot red" id="button-clear-red"></span>RED</div>
-                <div class="button-row"><button id="button-copy-red">COPY</button><button id="button-show-red">SHOW</button></div>
-            </div>
-            <div>
-                <div class="label"><span class="dot blue" id="button-clear-blue"></span>BLUE</div>
-                <div class="button-row"><button id="button-copy-blue">COPY</button><button id="button-show-blue">SHOW</button></div>
-            </div>
-            <div>
-                <div class="label"><span class="dot yellow" id="button-clear-yellow"></span>YELLOW</div>
-                <div class="button-row"><button id="button-copy-yellow">COPY</button><button id="button-show-yellow">SHOW</button></div>
+                <div class="label">cutoff</div>
+                <div class="input-row">
+                    <x-knob id="knob-filter-frequency" type="exp" min="10.0" max="20000.0" value="1000.0"></x-knob>
+                    <input id="input-filter-frequency" type="text" />
+                </div>
             </div>
 
             <div></div>
 
             <div>
-                <div class="label">Theme</div>
-                <div class="button-row">
+                <div class="label"><span class="dot green" id="button-clear-input"></span>INPUT</div>
+                <div class="input-row"><button id="button-show-input" class="selected">SHOW</button></div>
+            </div>
+            <div>
+                <div class="label"><span class="dot red" id="button-clear-red"></span>RED</div>
+                <div class="input-row"><button id="button-copy-red">COPY</button><button id="button-show-red">SHOW</button></div>
+            </div>
+            <div>
+                <div class="label"><span class="dot blue" id="button-clear-blue"></span>BLUE</div>
+                <div class="input-row"><button id="button-copy-blue">COPY</button><button id="button-show-blue">SHOW</button></div>
+            </div>
+            <div>
+                <div class="label"><span class="dot yellow" id="button-clear-yellow"></span>YELLOW</div>
+                <div class="input-row"><button id="button-copy-yellow">COPY</button><button id="button-show-yellow">SHOW</button></div>
+            </div>
+
+            <div></div>
+
+            <div>
+                <div class="label">theme</div>
+                <div class="input-row">
                     <button id="button-theme-light">LIGHT</button>
                     <button id="button-theme-dark" class="selected">DARK</button>
                 </div>

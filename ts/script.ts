@@ -1,6 +1,7 @@
 const SAMPLE_RATE = 44100;
+const BATCH_SIZE = 2048;
 
-let oscilloscope: Oscilloscope;
+let oscilloscope: Oscilloscope = null;
 
 function requestMicrophone(): Promise<MediaStream> {
     return navigator.mediaDevices.getUserMedia({
@@ -24,19 +25,16 @@ function init() {
     connectInputs(oscilloscope, 'timePerDivision', [$('knob-time'), $('input-time')]);
     connectInputs(oscilloscope, 'volumePerDivision', [$('knob-volume'), $('input-volume')]);
 
-    const buttonThemeLight = $('button-theme-light') as HTMLButtonElement;
-    const buttonThemeDark = $('button-theme-dark') as HTMLButtonElement;
-    onClick(buttonThemeLight, () => { removeClass(document.body, 'dark'); addClass(buttonThemeLight, 'selected'); removeClass(buttonThemeDark, 'selected'); });
-    onClick(buttonThemeDark, () => { addClass(document.body, 'dark'); removeClass(buttonThemeLight, 'selected'); addClass(buttonThemeDark, 'selected'); });
-    buttonThemeDark.click();
+    connectOptions([
+        [$('button-theme-dark') as HTMLButtonElement, () => addClass(document.body, 'dark')],
+        [$('button-theme-light') as HTMLButtonElement, () => removeClass(document.body, 'dark')]
+    ]);
 
-    const buttonModeStream = $('button-mode-stream') as HTMLButtonElement;
-    const buttonModeTrack = $('button-mode-track') as HTMLButtonElement;
-    const buttonModeTrigger = $('button-mode-trigger') as HTMLButtonElement;
-    onClick(buttonModeStream, () => { oscilloscope.mode = 'stream'; addClass(buttonModeStream, 'selected'); removeClass(buttonModeTrack, 'selected'); removeClass(buttonModeTrigger, 'selected'); })
-    onClick(buttonModeTrack, () => { oscilloscope.mode = 'track'; removeClass(buttonModeStream, 'selected'); addClass(buttonModeTrack, 'selected'); removeClass(buttonModeTrigger, 'selected'); })
-    onClick(buttonModeTrigger, () => { oscilloscope.mode = 'trigger'; removeClass(buttonModeStream, 'selected'); removeClass(buttonModeTrack, 'selected'); addClass(buttonModeTrigger, 'selected'); })
-    buttonModeStream.click();
+    connectOptions([
+        [$('button-mode-stream') as HTMLButtonElement, () => oscilloscope.mode = 'stream'],
+        [$('button-mode-track') as HTMLButtonElement, () => oscilloscope.mode = 'track'],
+        [$('button-mode-trigger') as HTMLButtonElement, () => oscilloscope.mode = 'trigger']
+    ]);
 
     connectToggle(oscilloscope.channels[0], 'visible', $('button-show-input') as HTMLButtonElement);
     connectToggle(oscilloscope.channels[1], 'visible', $('button-show-red') as HTMLButtonElement);
@@ -68,11 +66,27 @@ function init() {
         const stream = await requestMicrophone();
         const input = audioContext.createMediaStreamSource(stream);
 
-        const buttonOutputOn = $('button-output-on') as HTMLButtonElement;
-        const buttonOutputOff = $('button-output-off') as HTMLButtonElement;
-        onClick(buttonOutputOn, () => { if (hasClass(buttonOutputOff, 'selected')) { input.connect(audioContext.destination); addClass(buttonOutputOn, 'selected'); removeClass(buttonOutputOff, 'selected'); } });
-        onClick(buttonOutputOff, () => { if (!hasClass(buttonOutputOff, 'selected')) { input.disconnect(audioContext.destination); removeClass(buttonOutputOn, 'selected'); addClass(buttonOutputOff, 'selected'); } });
-        buttonOutputOff.click();
+        // Create a filter
+        const filter = audioContext.createBiquadFilter();
+        filter.Q.value = 1.0;
+        filter.frequency.value = 1000.0;
+        filter.gain.value = 1.0;
+        filter.type = 'allpass';
+        input.connect(filter);
+
+        connectOptions([
+            [$('button-output-off') as HTMLButtonElement, function () { if (!hasClass(this, 'selected')) input.disconnect(audioContext.destination); }],
+            [$('button-output-on') as HTMLButtonElement, function () { if (!hasClass(this, 'selected')) input.connect(audioContext.destination); }]
+        ]);
+
+        let isFilterConnected = false;
+        connectOptions([
+            [$('button-filter-off') as HTMLButtonElement, () => { if (isFilterConnected) { filter.disconnect(audioContext.destination); input.connect(audioContext.destination); isFilterConnected = false; } }],
+            [$('button-filter-low') as HTMLButtonElement, () => { if (!isFilterConnected) { input.disconnect(audioContext.destination); filter.connect(audioContext.destination); isFilterConnected = true; }; filter.type = 'lowpass'; }],
+            [$('button-filter-high') as HTMLButtonElement, () => { if (!isFilterConnected) { input.disconnect(audioContext.destination); filter.connect(audioContext.destination); isFilterConnected = true; }; filter.type = 'highpass'; }],
+        ]);
+
+        connectInputs(filter.frequency, 'value', [$('knob-filter-frequency'), $('input-filter-frequency')]);
 
         // Create a RecorderWorklet
         const recorder = new AudioWorkletNode(audioContext, 'recorder-worklet');
@@ -86,8 +100,21 @@ function init() {
                 console.log('Stop signal received.');
             }
         };
-        input.connect(recorder);
+        filter.connect(recorder);
         (recorder.parameters as any).get('isRecording').setValueAtTime(1, 0.0);
+
+        // // DEBUG SOUND
+        // const FEED = new Array(2048);
+        // setInterval(() => {
+        //     for (let i = 0; i < FEED.length; ++i) {
+        //         FEED[i] = Math.sin(2 * Math.PI * 123.0 * t) + Math.random() * 0.1; // noise sine
+        //         // FEED[i] = (2.0 * ((123.0 * t) % 1.0) - 1.0) + Math.random() * 0.25; // noise saw
+        //         // FEED[i] = (((123.0 * t) % 1.0) < 0.5 ? -1.0 : 1.0) + Math.random() * 0.25; // noise square
+        //         t += 1.0 / SAMPLE_RATE;
+        //     }
+        //     oscilloscope.feed(FEED);
+        // }, 100);
+
     }, { once: true });
 }
 
@@ -123,4 +150,16 @@ function connectToggle(object: Object, key: string, button: HTMLButtonElement): 
         object[key] = !object[key];
         (object[key] ? addClass : removeClass)(button, 'selected');
     });
+}
+
+function connectOptions(items: [HTMLButtonElement, () => void][]): void {
+    for (let i = 0; i < items.length; ++i) {
+        onClick(items[i][0], () => {
+            items[i][1].call(items[i][0]);
+            for (let j = 0; j < items.length; ++j)
+                (i == j ? addClass : removeClass)(items[j][0], 'selected');
+        });
+    }
+    if (items.length > 0)
+        items[0][0].click();
 }
