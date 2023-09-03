@@ -8,9 +8,17 @@ class KnobElement extends HTMLElement {
     _dragInfo: { id: number, x: number, y: number, position: number };
     _type: KnobType;
     _onChange: (knob: KnobElement) => void;
+    _shadow: ShadowRoot;
+    _dial: HTMLElement;
+    _label: HTMLInputElement;
+    _unit: string;
 
     constructor() {
         super();
+
+        this._shadow = this.attachShadow({ mode: 'closed' });
+        this._shadow.append(this._dial = create('div', { part: 'dial' }));
+        this._shadow.append(this._label = create('input', { part: 'label', type: 'text', disabled: 'true' }) as HTMLInputElement);
 
         const min = this.getAttribute('min');
         this._min = (min !== null) ? parseFloat(min) : 0.0;
@@ -24,9 +32,13 @@ class KnobElement extends HTMLElement {
             this.value = parseFloat(value);
         this._onChange = null;
 
+        this._unit = this.getAttribute('unit');
+
         this.addEventListener('pointerdown', (event) => this._dragStart(event));
         this.ownerDocument.addEventListener('pointermove', (event) => this._dragMove(event));
         this.ownerDocument.addEventListener('pointerup', (event) => this._dragEnd(event));
+
+        this.addEventListener('contextmenu', (event) => this._contextMenu(event));
 
         this._updateRotation();
     }
@@ -73,7 +85,8 @@ class KnobElement extends HTMLElement {
 
     _updateRotation(): void {
         const angle = -135 + 270 * this._position;
-        this.style.transform = `rotate(${angle}deg)`;
+        this._dial.style.transform = `rotate(${angle}deg)`;
+        this._label.value = prettyValueUnit(this.value, this._unit);
     }
 
     _dragStart(event: PointerEvent): void {
@@ -104,6 +117,27 @@ class KnobElement extends HTMLElement {
             this._dragging = false;
             this.classList.remove('dragging');
         }
+    }
+
+    _contextMenu(event: MouseEvent): void {
+        event.preventDefault();
+        event.stopPropagation();
+
+        this._label.value = this.value.toPrecision(3);
+        this._label.disabled = false;
+        this._label.focus();
+
+        const f = () => {
+            const value = parseFloat(this._label.value);
+            if (!isNaN(value)) {
+                this._label.disabled = true;
+                this.value = value;
+            }
+            this._updateRotation();
+        }
+
+        this._label.addEventListener('focusout', f, { once: true });
+        this._label.addEventListener('change', f, { once: true });
     }
 }
 

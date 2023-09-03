@@ -119,7 +119,7 @@ class RecorderWorkletProcessor extends AudioWorkletProcessor {
         this._recordingStopped();
       }
 
-      if (shouldRecord) {
+      if (shouldRecord && inputs[0][0] != null) {
         this._appendToBuffer(inputs[0][0][dataIndex]);
       }
     }

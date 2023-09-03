@@ -1,0 +1,65 @@
+x-knob {
+    position: relative;
+    min-width: 32px;
+    min-height: 32px;
+    width: 32px;
+    height: 32px;
+
+    &::part(dial) {
+        position: absolute;
+        top: 0px;
+        left: 2px;
+
+        min-width: 28px;
+        min-height: 28px;
+        width: 28px;
+        height: 28px;
+        border-radius: 28px;
+        background-color: var(--clr-interaction);
+        box-shadow: var(--box-shadow);
+        cursor: ns-resize;
+
+        outline: solid 1px transparent;
+        outline-offset: 2px;
+        transition: outline-color 0.2s ease-out;
+
+        &::after {
+            content: "";
+            display: block;
+            width: 2px;
+            height: 12px;
+            background-color: var(--clr-interaction-highlight);
+            position: absolute;
+            left: 14px;
+            top: 0px;
+        }
+    }
+
+    &.dragging::part(dial) {
+        outline-color: var(--clr-text);
+    }
+
+    &::part(label) {
+        position: absolute;
+        left: -16px;
+        top: 32px;
+        color: var(--clr-text);
+        font-size: 10px;
+        width: 64px;
+        text-align: center;
+        padding: 0px;
+        border: 0px;
+        background: transparent;
+        border-radius: 4px;
+        outline: 1px solid var(--clr-text);
+
+        &:disabled {
+            outline: none;
+            pointer-events: none;
+        }
+    }
+
+    &.disabled {
+        opacity: 0.5;
+    }
+}

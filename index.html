@@ -17,17 +17,17 @@
         <canvas id="canvas"></canvas>
         <div id="controls">
             <div>
-                <div class="label">time/div (ms)</div>
+                <div class="label">time/div</div>
                 <div class="input-row">
-                    <x-knob id="knob-time" type="exp" min="0.1" max="100" value="10"></x-knob>
-                    <input id="input-time" type="text" />
+                    <x-knob id="knob-time" type="exp" min="0.1" max="100" value="10" unit="s"></x-knob>
+                    <!-- <input id="input-time" type="text" /> -->
                 </div>
             </div>
             <div>
                 <div class="label">volume/div</div>
                 <div class="input-row">
                     <x-knob id="knob-volume" type="exp" min="0.01" max="1.5" value="0.5"></x-knob>
-                    <input id="input-volume" type="text" />
+                    <!-- <input id="input-volume" type="text" /> -->
                 </div>
             </div>
             <div>
@@ -41,6 +41,7 @@
             <div>
                 <div class="label">output</div>
                 <div class="input-row">
+                    <x-knob id="knob-output-gain" min="-24.0" max="24.0" value="0.0" unit="dB" class="disabled"></x-knob>
                     <button id="button-output-on">ON</button>
                     <button id="button-output-off" class="selected">OFF</button>
                 </div>
@@ -59,8 +60,8 @@
             <div>
                 <div class="label">cutoff</div>
                 <div class="input-row">
-                    <x-knob id="knob-filter-frequency" type="exp" min="10.0" max="20000.0" value="1000.0"></x-knob>
-                    <input id="input-filter-frequency" type="text" />
+                    <x-knob id="knob-filter-frequency" type="exp" min="10.0" max="20000.0" value="1000.0" unit="Hz" class="disabled"></x-knob>
+                    <!-- <input id="input-filter-frequency" type="text" /> -->
                 </div>
             </div>
 

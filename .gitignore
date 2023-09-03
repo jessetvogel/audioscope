@@ -3,3 +3,7 @@
 
 # watch
 watch
+
+# VSCode
+.certificate
+.vscode

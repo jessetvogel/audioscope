@@ -228,8 +228,8 @@ class Oscilloscope {
             if (channel.visible) {
                 const color = this._getChannelColor(i);
                 this._drawChannel(channel, color);
-                const frequency = channel.estimatedPeriodSure ? (this.sampleRate / channel.estimatedPeriod).toFixed(1) + ' Hz' : '--';
-                const period = channel.estimatedPeriodSure ? (channel.estimatedPeriod * 1000.0).toFixed(0) + ' ms' : '--';
+                const frequency = channel.estimatedPeriodSure ? prettyValueUnit(this.sampleRate / channel.estimatedPeriod, 'Hz') : '--';
+                const period = channel.estimatedPeriodSure ? prettyValueUnit(channel.estimatedPeriod / this.sampleRate, 's') : '--';
                 texts.push({ text: `frequency = ${frequency}`, color });
                 texts.push({ text: `period = ${period}`, color });
             }
@@ -255,15 +255,21 @@ class Oscilloscope {
                 points.push([x, y]);
             }
         }
-        else { // if there are multiple samples per pixel, draw one (interpolated) sample per pixel
+        else { // if there are multiple samples per pixel, draw one (linearly interpolated) sample per pixel
             for (let x = 0; x < this.width; ++x) {
-                let i = (x - this.width / 2 - shift) / this.grid.width * this.scale.x + center;
-                if (i >= start && i < end) {
-                    const iFloor = Math.floor(i);
-                    const iFrac = i - iFloor;
-                    const value = channel.buffer[iFloor] * (1.0 - iFrac) + channel.buffer[iFloor + 1] * iFrac;
-                    const y = this.height / 2 - (value / this.scale.y) * this.grid.height;
-                    points.push([x, y]);
+                const iStart = Math.max(start, Math.floor((x - this.width / 2 - shift) / this.grid.width * this.scale.x + center));
+                const iEnd = Math.min(end, Math.ceil(((x + 1) - this.width / 2 - shift) / this.grid.width * this.scale.x + center));
+                let min = Infinity;
+                let max = -Infinity;
+                for (let i = iStart; i < iEnd; ++i) {
+                    if (channel.buffer[i] < min) min = channel.buffer[i];
+                    if (channel.buffer[i] > max) max = channel.buffer[i];
+                }
+                if (min != Infinity && max != -Infinity) {
+                    const yMin = this.height / 2 - (min / this.scale.y) * this.grid.height;
+                    const yMax = this.height / 2 - (max / this.scale.y) * this.grid.height;
+                    points.push([x, yMin]);
+                    points.push([x, yMax]);
                 }
             }
         }
@@ -282,7 +288,7 @@ class Oscilloscope {
 
         this.ctx.strokeStyle = color;
         this.ctx.shadowColor = color;
-        this.ctx.shadowBlur = Math.max(0, Math.min(8, 8 - (length - 20000) / 1000)); // shadowBlur is very hard on performance, but looks pretty
+        this.ctx.shadowBlur = 0; // Math.max(0, Math.min(8, 8 - (length - 10000) / 1000)); // shadowBlur is very hard on performance, but looks pretty
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
         this.ctx.shadowBlur = 0;

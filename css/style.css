@@ -42,6 +42,64 @@ body.dark {
   --clr-oscilloscope-text: #ffffff;
 }
 
+x-knob {
+  position: relative;
+  min-width: 32px;
+  min-height: 32px;
+  width: 32px;
+  height: 32px;
+}
+x-knob::part(dial) {
+  position: absolute;
+  top: 0px;
+  left: 2px;
+  min-width: 28px;
+  min-height: 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 28px;
+  background-color: var(--clr-interaction);
+  box-shadow: var(--box-shadow);
+  cursor: ns-resize;
+  outline: solid 1px transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.2s ease-out;
+}
+x-knob::part(dial)::after {
+  content: "";
+  display: block;
+  width: 2px;
+  height: 12px;
+  background-color: var(--clr-interaction-highlight);
+  position: absolute;
+  left: 14px;
+  top: 0px;
+}
+x-knob.dragging::part(dial) {
+  outline-color: var(--clr-text);
+}
+x-knob::part(label) {
+  position: absolute;
+  left: -16px;
+  top: 32px;
+  color: var(--clr-text);
+  font-size: 10px;
+  width: 64px;
+  text-align: center;
+  padding: 0px;
+  border: 0px;
+  background: transparent;
+  border-radius: 4px;
+  outline: 1px solid var(--clr-text);
+}
+x-knob::part(label):disabled {
+  outline: none;
+  pointer-events: none;
+}
+x-knob.disabled {
+  opacity: 0.5;
+}
+
 html,
 body {
   margin: 0px;
@@ -66,9 +124,9 @@ body {
 
 #content {
   width: 100%;
-  height: 100%;
+  height: 720px;
   max-width: 1280px;
-  max-height: 720px;
+  max-height: 100%;
   display: grid;
   grid-template-columns: 3fr 1fr;
   grid-template-rows: 1fr;
@@ -107,6 +165,8 @@ body {
   border: 1px solid var(--clr-text);
   border-radius: 16px;
   box-sizing: border-box;
+  overflow-y: scroll;
+  min-width: 320px;
 }
 #controls > div {
   display: flex;
@@ -158,35 +218,6 @@ input[type=color] {
   height: 24px;
   border: 0px;
   cursor: pointer;
-}
-
-x-knob {
-  min-width: 32px;
-  min-height: 32px;
-  width: 32px;
-  height: 32px;
-  border-radius: 32px;
-  background-color: var(--clr-interaction);
-  box-shadow: var(--box-shadow);
-  cursor: ns-resize;
-  position: relative;
-  transform: rotate(45deg);
-  outline: solid 1px transparent;
-  outline-offset: 2px;
-  transition: outline-color 0.2s ease-out;
-}
-x-knob::after {
-  content: "";
-  display: block;
-  width: 2px;
-  height: 12px;
-  background-color: var(--clr-interaction-highlight);
-  position: absolute;
-  left: 14px;
-  top: 0px;
-}
-x-knob.dragging {
-  outline-color: var(--clr-text);
 }
 
 button {

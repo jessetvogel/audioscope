@@ -1,4 +1,4 @@
-const SAMPLE_RATE = 44100;
+const SAMPLE_RATE = new AudioContext().sampleRate;
 const BATCH_SIZE = 2048;
 
 let oscilloscope: Oscilloscope = null;
@@ -7,7 +7,7 @@ function requestMicrophone(): Promise<MediaStream> {
     return navigator.mediaDevices.getUserMedia({
         audio: {
             noiseSuppression: false,
-            // echoCancellation: false,
+            echoCancellation: false
         }
     });
 }
@@ -22,8 +22,8 @@ function init() {
     });
 
     // Controls
-    connectInputs(oscilloscope, 'timePerDivision', [$('knob-time'), $('input-time')]);
-    connectInputs(oscilloscope, 'volumePerDivision', [$('knob-volume'), $('input-volume')]);
+    connectKnob(oscilloscope, 'timePerDivision', $('knob-time') as KnobElement);
+    connectKnob(oscilloscope, 'volumePerDivision', $('knob-volume') as KnobElement);
 
     connectOptions([
         [$('button-theme-dark') as HTMLButtonElement, () => addClass(document.body, 'dark')],
@@ -55,94 +55,99 @@ function init() {
 
     // Setup everything on user-input (click)
     document.body.addEventListener('click', async function () {
-        // Remove placeholder
-        $('canvas-placeholder').remove();
+        try {
+            // Remove placeholder
+            $('canvas-placeholder').remove();
 
-        // Create AudioContext
-        const audioContext = new AudioContext({ sampleRate: SAMPLE_RATE, });
-        await audioContext.audioWorklet.addModule('js/recorder-worklet.js');
+            // Create AudioContext
+            const audioContext = new AudioContext({ sampleRate: SAMPLE_RATE, });
+            await audioContext.audioWorklet.addModule('js/recorder-worklet.js');
 
-        // Create an AudioNode from the microphone stream
-        const stream = await requestMicrophone();
-        const input = audioContext.createMediaStreamSource(stream);
+            // Create collector through which the output must pass. Note: by default this node is not yet connected to audioContext.destination
+            const collector = audioContext.createGain();
+            collector.gain.value = 1.0;
+            const output = audioContext.createGain();
+            output.gain.value = 1.0;
+            output.connect(audioContext.destination);
 
-        // Create a filter
-        const filter = audioContext.createBiquadFilter();
-        filter.Q.value = 1.0;
-        filter.frequency.value = 1000.0;
-        filter.gain.value = 1.0;
-        filter.type = 'allpass';
-        input.connect(filter);
+            // Create an AudioNode from the microphone stream
+            const stream = await requestMicrophone();
+            const input = audioContext.createMediaStreamSource(stream);
+            input.connect(collector);
 
-        connectOptions([
-            [$('button-output-off') as HTMLButtonElement, function () { if (!hasClass(this, 'selected')) input.disconnect(audioContext.destination); }],
-            [$('button-output-on') as HTMLButtonElement, function () { if (!hasClass(this, 'selected')) input.connect(audioContext.destination); }]
-        ]);
+            // Create a filter
+            const filter = audioContext.createBiquadFilter();
+            filter.Q.value = 1.0;
+            filter.frequency.value = 1000.0;
+            filter.gain.value = 1.0;
+            filter.type = 'allpass';
+            filter.connect(collector);
 
-        let isFilterConnected = false;
-        connectOptions([
-            [$('button-filter-off') as HTMLButtonElement, () => { if (isFilterConnected) { filter.disconnect(audioContext.destination); input.connect(audioContext.destination); isFilterConnected = false; } }],
-            [$('button-filter-low') as HTMLButtonElement, () => { if (!isFilterConnected) { input.disconnect(audioContext.destination); filter.connect(audioContext.destination); isFilterConnected = true; }; filter.type = 'lowpass'; }],
-            [$('button-filter-high') as HTMLButtonElement, () => { if (!isFilterConnected) { input.disconnect(audioContext.destination); filter.connect(audioContext.destination); isFilterConnected = true; }; filter.type = 'highpass'; }],
-        ]);
+            const knobOutputGain = $('knob-output-gain') as KnobElement;
+            connectKnob(output.gain, 'value', knobOutputGain, (dB: number) => {
+                return Math.pow(10.0, dB / 20.0);
+            });
 
-        connectInputs(filter.frequency, 'value', [$('knob-filter-frequency'), $('input-filter-frequency')]);
+            let isOutputConneted = false;
 
-        // Create a RecorderWorklet
-        const recorder = new AudioWorkletNode(audioContext, 'recorder-worklet');
-        recorder.port.onmessage = (e) => {
-            if (e.data.eventType === 'data') {
-                const buffer = e.data.audioBuffer;
-                oscilloscope.feed(buffer);
-            }
-            if (e.data.eventType === 'stop') {
-                // recording has stopped
-                console.log('Stop signal received.');
-            }
-        };
-        filter.connect(recorder);
-        (recorder.parameters as any).get('isRecording').setValueAtTime(1, 0.0);
+            connectOptions([
+                [$('button-output-off') as HTMLButtonElement, function () { if (isOutputConneted) { collector.disconnect(output); isOutputConneted = false; addClass(knobOutputGain, 'disabled'); } }],
+                [$('button-output-on') as HTMLButtonElement, function () { if (!isOutputConneted) { collector.connect(output); isOutputConneted = true; removeClass(knobOutputGain, 'disabled'); } }]
+            ]);
 
-        // // DEBUG SOUND
-        // const FEED = new Array(2048);
-        // setInterval(() => {
-        //     for (let i = 0; i < FEED.length; ++i) {
-        //         FEED[i] = Math.sin(2 * Math.PI * 123.0 * t) + Math.random() * 0.1; // noise sine
-        //         // FEED[i] = (2.0 * ((123.0 * t) % 1.0) - 1.0) + Math.random() * 0.25; // noise saw
-        //         // FEED[i] = (((123.0 * t) % 1.0) < 0.5 ? -1.0 : 1.0) + Math.random() * 0.25; // noise square
-        //         t += 1.0 / SAMPLE_RATE;
-        //     }
-        //     oscilloscope.feed(FEED);
-        // }, 100);
+            const knobFilterFrequency = $('knob-filter-frequency') as KnobElement;
+            connectKnob(filter.frequency, 'value', knobFilterFrequency);
 
+            let isFilterConnected = false;
+            connectOptions([
+                [$('button-filter-off') as HTMLButtonElement, () => { if (isFilterConnected) { input.disconnect(filter); input.connect(collector); isFilterConnected = false; addClass(knobFilterFrequency, 'disabled'); } }],
+                [$('button-filter-low') as HTMLButtonElement, () => { if (!isFilterConnected) { input.disconnect(collector); input.connect(filter); isFilterConnected = true; removeClass(knobFilterFrequency, 'disabled'); }; filter.type = 'lowpass'; }],
+                [$('button-filter-high') as HTMLButtonElement, () => { if (!isFilterConnected) { input.disconnect(collector); input.connect(filter); isFilterConnected = true; removeClass(knobFilterFrequency, 'disabled'); }; filter.type = 'highpass'; }],
+            ]);
+
+            // Create a RecorderWorklet
+            const recorder = new AudioWorkletNode(audioContext, 'recorder-worklet');
+            recorder.port.onmessage = (e) => {
+                if (e.data.eventType === 'data') {
+                    const buffer = e.data.audioBuffer;
+                    oscilloscope.feed(buffer);
+                }
+                if (e.data.eventType === 'stop') {
+                    // recording has stopped
+                    console.log('Stop signal received.');
+                }
+            };
+            collector.connect(recorder);
+            (recorder.parameters as any).get('isRecording').setValueAtTime(1, 0.0);
+
+            // // DEBUG SOUND
+            // const FEED = new Array(2048);
+            // setInterval(() => {
+            //     for (let i = 0; i < FEED.length; ++i) {
+            //         FEED[i] = Math.sin(2 * Math.PI * 123.0 * t) + Math.random() * 0.1; // noise sine
+            //         // FEED[i] = (2.0 * ((123.0 * t) % 1.0) - 1.0) + Math.random() * 0.25; // noise saw
+            //         // FEED[i] = (((123.0 * t) % 1.0) < 0.5 ? -1.0 : 1.0) + Math.random() * 0.25; // noise square
+            //         t += 1.0 / SAMPLE_RATE;
+            //     }
+            //     oscilloscope.feed(FEED);
+            // }, 100);
+        }
+        catch (error) {
+            alert(error);
+        }
     }, { once: true });
 }
 
 window.onload = init;
 
-function connectInputs(object: Object, key: string, inputs: HTMLElement[]): void {
+function connectKnob(object: Object, key: string, knob: KnobElement, conversion: (x: number) => number = null): void {
     function update(value: number): void {
+        if (conversion != null)
+            value = conversion(value);
         object[key] = value;
-        for (const input of inputs) {
-            if (input instanceof HTMLInputElement)
-                input.value = value.toFixed(2);
-            if (input instanceof KnobElement)
-                input.value = value;
-        }
     }
-
-    for (const input of inputs) {
-        if (input instanceof HTMLInputElement)
-            onChange(input, () => update(parseFloat(input.value)));
-        if (input instanceof KnobElement) {
-            input.onChange = () => {
-                update(input.value);
-            }
-        }
-    }
-
-    if (inputs.length > 0)
-        update(parseFloat((inputs[0] as HTMLInputElement).value));
+    knob.onChange = () => update(knob.value);
+    update(knob.value);
 }
 
 function connectToggle(object: Object, key: string, button: HTMLButtonElement): void {
@@ -162,4 +167,27 @@ function connectOptions(items: [HTMLButtonElement, () => void][]): void {
     }
     if (items.length > 0)
         items[0][0].click();
+}
+
+function prettyValueUnit(value: number, unit: string): string {
+    if (unit == null || unit == '')
+        return value.toPrecision(3);
+
+    if (unit == 'dB')
+        return (value > 0 ? '+' : '') + value.toPrecision(3) + ' ' + unit;
+
+    if (!(unit == 's' || unit == 'Hz'))
+        return value.toPrecision(3) + ' ' + unit;
+
+    if (value >= 1.0 && value <= 1000.0)
+        return value.toPrecision(3) + ' ' + unit;
+
+    if (value >= 0.001 && value <= 1.0)
+        return (value * 1000.0).toPrecision(3) + ' m' + unit;
+
+    if (value <= 0.001)
+        return (value * 1000000.0).toPrecision(3) + ' μ' + unit;
+
+    if (value >= 1000.0)
+        return (value / 1000.0).toPrecision(3) + ' k' + unit;
 }
