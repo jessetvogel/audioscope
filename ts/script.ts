@@ -22,7 +22,7 @@ function init() {
     });
 
     // Controls
-    connectKnob(oscilloscope, 'timePerDivision', $('knob-time') as KnobElement);
+    connectKnob(oscilloscope, 'timePerDivision', $('knob-time') as KnobElement, x => x * 1000.0);
     connectKnob(oscilloscope, 'volumePerDivision', $('knob-volume') as KnobElement);
 
     connectOptions([
@@ -73,7 +73,7 @@ function init() {
             // Create an AudioNode from the microphone stream
             const stream = await requestMicrophone();
             const input = audioContext.createMediaStreamSource(stream);
-            input.connect(collector);
+            input.connect(collector, 0, 0);
 
             // Create a filter
             const filter = audioContext.createBiquadFilter();
@@ -117,6 +117,7 @@ function init() {
                     console.log('Stop signal received.');
                 }
             };
+
             collector.connect(recorder);
             (recorder.parameters as any).get('isRecording').setValueAtTime(1, 0.0);
 

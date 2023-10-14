@@ -431,7 +431,7 @@ function init() {
         channels: 4
     });
     // Controls
-    connectKnob(oscilloscope, 'timePerDivision', $('knob-time'));
+    connectKnob(oscilloscope, 'timePerDivision', $('knob-time'), x => x * 1000.0);
     connectKnob(oscilloscope, 'volumePerDivision', $('knob-volume'));
     connectOptions([
         [$('button-theme-dark'), () => addClass(document.body, 'dark')],
@@ -475,7 +475,7 @@ function init() {
             // Create an AudioNode from the microphone stream
             const stream = await requestMicrophone();
             const input = audioContext.createMediaStreamSource(stream);
-            input.connect(collector);
+            input.connect(collector, 0, 0);
             // Create a filter
             const filter = audioContext.createBiquadFilter();
             filter.Q.value = 1.0;
